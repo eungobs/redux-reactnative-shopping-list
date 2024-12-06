@@ -16,10 +16,15 @@ const SET_PURCHASED_ITEMS = 'SET_PURCHASED_ITEMS';
 // Action Creators
 const addItem = (item) => ({ type: ADD_ITEM, payload: item });
 const removeItem = (id) => ({ type: REMOVE_ITEM, payload: id });
-const editItem = (id, name) => ({ type: EDIT_ITEM, payload: { id, name } });
+const editItem = (id, name, price) => ({ type: EDIT_ITEM, payload: { id, name, price } });
 const toggleItem = (id) => ({ type: TOGGLE_ITEM, payload: id });
 const setItems = (items) => ({ type: SET_ITEMS, payload: items });
 const setPurchasedItems = (items) => ({ type: SET_PURCHASED_ITEMS, payload: items });
+
+// Formatter for ZAR currency
+const formatPrice = (price) => {
+  return `R${parseFloat(price).toFixed(2)}`;
+};
 
 // Reducer
 const initialState = {
@@ -45,7 +50,7 @@ const shoppingListReducer = (state = initialState, action) => {
         ...state,
         items: state.items.map(item =>
           item.id === action.payload.id
-            ? { ...item, name: action.payload.name }
+            ? { ...item, name: action.payload.name, price: action.payload.price }
             : item
         )
       };
@@ -113,6 +118,9 @@ const ShoppingListItem = ({ item, onToggle, onEdit, onRemove }) => (
     >
       {item.name}
     </Text>
+    <Text style={styles.priceText}>
+      {formatPrice(item.price || '0.00')}
+    </Text>
     {!item.checked && (
       <TouchableOpacity onPress={onEdit} style={styles.iconButton}>
         <Icon name="edit" size={20} color="#4CAF50" />
@@ -126,9 +134,13 @@ const ShoppingListItem = ({ item, onToggle, onEdit, onRemove }) => (
 
 const ShoppingListApp = () => {
   const [input, setInput] = useState('');
+  const [priceInput, setPriceInput] = useState('');
   const dispatch = useDispatch();
   const items = useSelector((state) => state.items);
   const purchasedItems = useSelector((state) => state.purchasedItems);
+
+  // Calculate total price
+  const totalPrice = items.reduce((sum, item) => sum + (parseFloat(item.price) || 0), 0);
 
   // Load saved items when app starts
   useEffect(() => {
@@ -151,8 +163,8 @@ const ShoppingListApp = () => {
 
   const handleShare = async () => {
     try {
-      const shoppingList = items.map(item => `• ${item.name}`).join('\n');
-      const message = `My Shopping List:\n\n${shoppingList}\n\nSent from my Shopping List App`;
+      const shoppingList = items.map(item => `• ${item.name} - ${formatPrice(item.price || '0.00')}`).join('\n');
+      const message = `My Shopping List:\n\n${shoppingList}\n\nTotal: ${formatPrice(totalPrice)}\n\nSent from my Shopping List App`;
       
       await Share.share({
         message: message,
@@ -171,24 +183,41 @@ const ShoppingListApp = () => {
     const newItem = {
       id: Date.now().toString(),
       name: input.trim(),
+      price: parseFloat(priceInput) || 0,
       checked: false
     };
     
     dispatch(addItem(newItem));
     setInput('');
+    setPriceInput('');
   };
 
-  const handleEditItem = (id, currentName) => {
+  const handleEditItem = (id, currentName, currentPrice) => {
     Alert.prompt(
       'Edit Item',
       'Enter new name:',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'OK',
+          text: 'Next',
           onPress: (newName) => {
-            if (newName?.trim() && newName !== currentName) {
-              dispatch(editItem(id, newName.trim()));
+            if (newName?.trim()) {
+              Alert.prompt(
+                'Edit Price',
+                'Enter new price (R):',
+                [
+                  { text: 'Cancel', style: 'cancel' },
+                  {
+                    text: 'OK',
+                    onPress: (newPrice) => {
+                      const price = parseFloat(newPrice) || 0;
+                      dispatch(editItem(id, newName.trim(), price));
+                    }
+                  }
+                ],
+                'plain-text',
+                currentPrice?.toString()
+              );
             }
           }
         }
@@ -216,7 +245,13 @@ const ShoppingListApp = () => {
           value={input}
           onChangeText={setInput}
           placeholder="Add item"
-          onSubmitEditing={handleAddItem}
+        />
+        <TextInput
+          style={styles.priceInput}
+          value={priceInput}
+          onChangeText={setPriceInput}
+          placeholder="Price (R)"
+          keyboardType="numeric"
         />
         <TouchableOpacity 
           style={styles.addButton}
@@ -234,7 +269,7 @@ const ShoppingListApp = () => {
           <ShoppingListItem
             item={item}
             onToggle={() => dispatch(toggleItem(item.id))}
-            onEdit={() => handleEditItem(item.id, item.name)}
+            onEdit={() => handleEditItem(item.id, item.name, item.price)}
             onRemove={() => dispatch(removeItem(item.id))}
           />
         )}
@@ -242,6 +277,10 @@ const ShoppingListApp = () => {
           <Text style={styles.emptyText}>No items to buy</Text>
         }
       />
+
+      <View style={styles.totalContainer}>
+        <Text style={styles.totalText}>Total: {formatPrice(totalPrice)}</Text>
+      </View>
 
       <Text style={styles.sectionTitle}>Purchased</Text>
       <FlatList
@@ -258,6 +297,10 @@ const ShoppingListApp = () => {
           <Text style={styles.emptyText}>No purchased items</Text>
         }
       />
+
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>All rights reserved, eungobsShoppingList@2024</Text>
+      </View>
     </View>
   );
 };
@@ -287,6 +330,16 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   input: {
+    flex: 2,
+    borderWidth: 1,
+    borderColor: '#ccc',
+    padding: 12,
+    borderRadius: 5,
+    fontSize: 16,
+    backgroundColor: '#fff',
+    marginRight: 10,
+  },
+  priceInput: {
     flex: 1,
     borderWidth: 1,
     borderColor: '#ccc',
@@ -329,6 +382,11 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 10,
   },
+  priceText: {
+    fontSize: 16,
+    color: '#666',
+    marginRight: 10,
+  },
   checkedText: {
     textDecorationLine: 'line-through',
     color: '#4CAF50',
@@ -342,6 +400,35 @@ const styles = StyleSheet.create({
     color: '#666',
     fontStyle: 'italic',
     marginTop: 10,
+  },
+  totalContainer: {
+    backgroundColor: '#fff',
+    padding: 15,
+    borderRadius: 8,
+    marginVertical: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+  },
+  totalText: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#4CAF50',
+    textAlign: 'right',
+  },
+  footer: {
+    padding: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#ccc',
+    marginTop: 10,
+  },
+  footerText: {
+    color: '#666',
+    fontSize: 12,
   },
 });
 

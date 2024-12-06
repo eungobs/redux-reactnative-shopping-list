@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { createStore } from 'redux';
-import { Text, View, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet, Share } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
@@ -64,19 +64,37 @@ const shoppingListReducer = (state = initialState, action) => {
     case SET_ITEMS:
       return {
         ...state,
-        items: action.payload
+        items: action.payload || []
       };
     case SET_PURCHASED_ITEMS:
       return {
         ...state,
-        purchasedItems: action.payload
+        purchasedItems: action.payload || []
       };
     default:
       return state;
   }
 };
 
-const store = createStore(shoppingListReducer);
+// Create store with persistence enhancer
+const persistedState = {
+  items: [],
+  purchasedItems: []
+};
+
+// Create store
+const store = createStore(shoppingListReducer, persistedState);
+
+// Subscribe to store changes to persist data
+store.subscribe(() => {
+  const state = store.getState();
+  try {
+    AsyncStorage.setItem('shoppingList', JSON.stringify(state.items));
+    AsyncStorage.setItem('purchasedItems', JSON.stringify(state.purchasedItems));
+  } catch (error) {
+    console.error('Error saving state:', error);
+  }
+});
 
 const ShoppingListItem = ({ item, onToggle, onEdit, onRemove }) => (
   <View style={styles.itemContainer}>
@@ -112,47 +130,51 @@ const ShoppingListApp = () => {
   const items = useSelector((state) => state.items);
   const purchasedItems = useSelector((state) => state.purchasedItems);
 
+  // Load saved items when app starts
   useEffect(() => {
-    loadItems();
+    const loadSavedItems = async () => {
+      try {
+        const [savedItems, savedPurchasedItems] = await Promise.all([
+          AsyncStorage.getItem('shoppingList'),
+          AsyncStorage.getItem('purchasedItems')
+        ]);
+
+        if (savedItems) dispatch(setItems(JSON.parse(savedItems)));
+        if (savedPurchasedItems) dispatch(setPurchasedItems(JSON.parse(savedPurchasedItems)));
+      } catch (error) {
+        Alert.alert('Error', 'Failed to load shopping list');
+      }
+    };
+
+    loadSavedItems();
   }, []);
 
-  useEffect(() => {
-    saveItems();
-  }, [items, purchasedItems]);
-
-  const loadItems = async () => {
+  const handleShare = async () => {
     try {
-      const [savedItems, savedPurchasedItems] = await Promise.all([
-        AsyncStorage.getItem('shoppingList'),
-        AsyncStorage.getItem('purchasedItems')
-      ]);
-
-      if (savedItems) dispatch(setItems(JSON.parse(savedItems)));
-      if (savedPurchasedItems) dispatch(setPurchasedItems(JSON.parse(savedPurchasedItems)));
+      const shoppingList = items.map(item => `• ${item.name}`).join('\n');
+      const message = `My Shopping List:\n\n${shoppingList}\n\nSent from my Shopping List App`;
+      
+      await Share.share({
+        message: message,
+        title: 'My Shopping List'
+      }, {
+        dialogTitle: 'Share shopping list via WhatsApp'
+      });
     } catch (error) {
-      Alert.alert('Error', 'Failed to load shopping list');
-    }
-  };
-
-  const saveItems = async () => {
-    try {
-      await Promise.all([
-        AsyncStorage.setItem('shoppingList', JSON.stringify(items)),
-        AsyncStorage.setItem('purchasedItems', JSON.stringify(purchasedItems))
-      ]);
-    } catch (error) {
-      Alert.alert('Error', 'Failed to save shopping list');
+      Alert.alert('Error', 'Failed to share shopping list');
     }
   };
 
   const handleAddItem = () => {
     if (!input.trim()) return;
     
-    dispatch(addItem({
+    const newItem = {
       id: Date.now().toString(),
       name: input.trim(),
       checked: false
-    }));
+    };
+    
+    dispatch(addItem(newItem));
     setInput('');
   };
 
@@ -178,7 +200,15 @@ const ShoppingListApp = () => {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Shopping List</Text>
+      <View style={styles.headerContainer}>
+        <Text style={styles.title}>Shopping List</Text>
+        <TouchableOpacity 
+          onPress={handleShare}
+          style={styles.shareButton}
+        >
+          <Icon name="share-alt" size={24} color="#4CAF50" />
+        </TouchableOpacity>
+      </View>
       
       <View style={styles.inputContainer}>
         <TextInput
@@ -238,12 +268,19 @@ const styles = StyleSheet.create({
     padding: 15,
     backgroundColor: '#f4f4f4',
   },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 20,
+  },
   title: {
     fontSize: 28,
     color: '#4CAF50',
     fontWeight: 'bold',
-    textAlign: 'center',
-    marginBottom: 20,
+  },
+  shareButton: {
+    padding: 8,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -308,10 +345,31 @@ const styles = StyleSheet.create({
   },
 });
 
-export default function App() {
+// Main App component
+const App = () => {
+  useEffect(() => {
+    const loadInitialState = async () => {
+      try {
+        const [savedItems, savedPurchasedItems] = await Promise.all([
+          AsyncStorage.getItem('shoppingList'),
+          AsyncStorage.getItem('purchasedItems')
+        ]);
+        
+        if (savedItems) store.dispatch(setItems(JSON.parse(savedItems)));
+        if (savedPurchasedItems) store.dispatch(setPurchasedItems(JSON.parse(savedPurchasedItems)));
+      } catch (error) {
+        console.error('Error loading initial state:', error);
+      }
+    };
+
+    loadInitialState();
+  }, []);
+
   return (
     <Provider store={store}>
       <ShoppingListApp />
     </Provider>
   );
-}
+};
+
+export default App;

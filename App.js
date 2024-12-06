@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Provider, useDispatch, useSelector } from 'react-redux';
 import { createStore } from 'redux';
-import { Text, View, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet, Share } from 'react-native';
+import { Text, View, TextInput, TouchableOpacity, FlatList, Alert, StyleSheet, Share, Animated } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import Icon from 'react-native-vector-icons/FontAwesome';
 
@@ -100,6 +100,36 @@ store.subscribe(() => {
     console.error('Error saving state:', error);
   }
 });
+
+// Blinking Trolley Component
+const BlinkingTrolley = () => {
+  const opacity = new Animated.Value(1);
+
+  useEffect(() => {
+    const animate = () => {
+      Animated.sequence([
+        Animated.timing(opacity, {
+          toValue: 0.2,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+        Animated.timing(opacity, {
+          toValue: 1,
+          duration: 800,
+          useNativeDriver: true,
+        }),
+      ]).start(() => animate());
+    };
+
+    animate();
+  }, []);
+
+  return (
+    <Animated.View style={{ opacity }}>
+      <Icon name="shopping-cart" size={24} color="#4CAF50" />
+    </Animated.View>
+  );
+};
 
 const ShoppingListItem = ({ item, onToggle, onEdit, onRemove }) => (
   <View style={styles.itemContainer}>
@@ -261,7 +291,11 @@ const ShoppingListApp = () => {
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.sectionTitle}>To Buy</Text>
+      <View style={styles.sectionHeaderContainer}>
+        <Text style={styles.sectionTitle}>To Buy</Text>
+        <BlinkingTrolley />
+      </View>
+
       <FlatList
         data={items}
         keyExtractor={(item) => item.id}
@@ -357,10 +391,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     width: 48,
   },
+  sectionHeaderContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginVertical: 15,
+    paddingRight: 10,
+  },
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginVertical: 15,
     color: '#333',
   },
   itemContainer: {

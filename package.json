@@ -14,16 +14,15 @@
     "@react-native-async-storage/async-storage": "1.23.1",
     "@react-native-community/cli-server-api": "^16.0.0",
     "@reduxjs/toolkit": "^2.4.0",
-    "expo": "^52.0.17",
+    "expo": "^52.0.0",
     "expo-modules-core": "^2.1.1",
     "expo-status-bar": "~2.0.0",
     "metro": "^0.81.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "react-native": "0.76.3",
+    "react-native": "0.76.6",
     "react-redux": "^9.1.2",
-    "redux": "^5.0.1",
-    "shopping-list-app": "file:"
+    "redux": "^5.0.1"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0",

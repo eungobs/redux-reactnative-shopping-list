@@ -1,7 +1,6 @@
-Sure! Here’s a simple and easy-to-understand explanation of the Shopping List App, perfect for someone who may not know much about coding:
-
 
 # Shopping List App: Your Handy Shopping Organizer
+Demo Link:https://drive.google.com/file/d/1xxc-nvdN7xnCzLQ6HUrboJvjxUTIH3PF/view?usp=sharing
 
 The **Shopping List App** is a mobile application designed to help you manage and organize your shopping lists effectively. With this app, you can easily keep track of what you need to buy, ensuring that you never miss anything during your shopping trips.
 
